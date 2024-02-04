@@ -1,0 +1,5 @@
+name: AuctionHouse
+main: ryun42680\auctionhouse\AuctionHouseLoader
+author: ryun42680
+version: 1.0.0
+api: [ 5.0.0 ]
