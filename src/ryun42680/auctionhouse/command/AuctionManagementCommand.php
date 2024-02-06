@@ -7,18 +7,19 @@ use pocketmine\command\CommandSender;
 use pocketmine\permission\DefaultPermissions;
 use pocketmine\player\Player;
 use ryun42680\auctionhouse\AuctionHouseLoader;
+use ryun42680\guideloader\GuideLoader;
 use ryun42680\lib\itemparser\ItemParser;
 
 final class AuctionManagementCommand extends Command {
 
     public function __construct() {
         parent::__construct('거래소관리', '거래소를 관리합니다.');
-        $this->setPermission(DefaultPermissions::ROOT_OPERATOR);
+        $this->setPermission(DefaultPermissions::ROOT_USER);
     }
 
     public function execute(CommandSender $sender, string $commandLabel, array $args): void {
         if ($sender instanceof Player) {
-            if ($this->testPermission($sender)) {
+            if ($this->testPermission($sender) and ($sender->hasPermission(DefaultPermissions::ROOT_OPERATOR) or GuideLoader::getInstance()->isGuide($sender))) {
                 switch (array_shift($args) ?? '') {
                     case '물품제거':
                         AuctionHouseLoader::getInstance()->sendAuctionHouse($sender, null, true);
