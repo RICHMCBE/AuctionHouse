@@ -106,18 +106,27 @@ final class AuctionHouseLoader extends PluginBase {
     public function getItemsByPage(int $page): array {
         $result = [];
         if ($page > 0) {
+            $this->returnItems();
             for ($i = ($page * 36) - 36; $i < $page * 36; $i++) {
                 $auctionItem = array_values($this->provider->getAll()) [$i] ?? null;
                 if (!is_null($auctionItem)) {
-                    if ($auctionItem->isClosed()) {
-                        $this->returnItem($auctionItem->getId());
-                    } else {
-                        $result [] = $auctionItem;
-                    }
+                    $result [] = $auctionItem;
                 }
             }
         }
         return $result;
+    }
+
+    private function returnItems(): void {
+        /**
+         * @var string $id
+         * @var AuctionItem $auctionItem
+         */
+        foreach ($this->provider->getAll() as $id => $auctionItem) {
+            if ($auctionItem->isClosed()) {
+                $this->returnItem($id);
+            }
+        }
     }
 
     public function getItemsByWord(string $word): array {
