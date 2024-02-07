@@ -96,6 +96,7 @@ final class AuctionHouseLoader extends PluginBase {
 
     public function returnItem(string $id): void {
         $auctionItem = $this->getAuctionItem($id);
+        $this->unregisterItem($id);
         NaengMailBox::getInstance()->getMailManager()->sendItemMail($auctionItem->getOwner(), '거래소 아이템 반환', '거래소', time() + 60 * 60 * 24 * 10, '거래소 아이템이 반환되었습니다.', [NaengUtils::itemStringSerialize($auctionItem->getItem())]);
     }
 
