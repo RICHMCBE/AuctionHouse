@@ -173,7 +173,7 @@ final class AuctionHouseLoader extends PluginBase {
                         $auctionItem = AuctionHouseLoader::getInstance()->getAuctionItem($id);
                         if ($auctionItem instanceof AuctionItem) {
                             if ($deleteMode) {
-                                $this->provider->deleteObject($id);
+                                $this->returnItem($id);
                                 $inventory->close($player);
                                 $player->sendMessage(AuctionHouseLoader::$prefix . '작업 완료.');
                             } else {
