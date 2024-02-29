@@ -2,7 +2,7 @@
 
 namespace ryun42680\auctionhouse;
 
-use naeng\NaengMailBox\NaengMailBox;
+use naeng\NaengMailBox\mail\Mail;
 use NaengUtils\NaengUtils;
 use pocketmine\item\Item;
 use pocketmine\player\Player;
@@ -56,7 +56,8 @@ final class AuctionItem implements \JsonSerializable {
                 $inventory = $player->getInventory();
                 if ($inventory->canAddItem($this->item)) {
                     AuctionHouseLoader::getInstance()->unregisterItem($this->id);
-                    NaengMailBox::getInstance()->getMailManager()->sendItemMail($player, '거래소 아이템 구매', '거래소', time() + 60 * 60 * 24 * 10, '거래소 아이템이 도착하였습니다.', [NaengUtils::itemStringSerialize($this->item)]);
+                    $mail = new Mail(title: '거래소 아이템 구매', senderName: '거래소', body: '거래소 아이템이 도착하였습니다.', items: [$this->item], expireTimeStamp: time() + 60 * 60 * 24 * 10);
+                    $mail->send($player);
                     WalletFactory::getInstance()->getWallet($this->owner)->addCoin($this->price);
                     OfflineNotice::getInstance()->getOfflinePlayer($this->owner)?->addNotice(AuctionHouseLoader::$prefix . '누군가 거래소에서 아이템을 구매했습니다! 잔고를 확인해보세요.');
                     $player->sendMessage(AuctionHouseLoader::$prefix . '거래소에서 아이템을 구매했습니다.');
