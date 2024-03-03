@@ -38,7 +38,7 @@ final class RegisterItemCommand extends Command {
                                             $time = (int)$time;
                                             $id = mt_rand(1111, PHP_INT_MAX);
                                             $item->setCount($count);
-                                            AuctionHouseLoader::getInstance()->registerItem(new AuctionItem($id, $sender->getName(), $price, $item, time() + 60 * 60 * $time));
+                                            AuctionHouseLoader::getInstance()->registerItem(new AuctionItem($id, $sender->getName(), intval($price), $item, time() + 60 * 60 * $time));
                                             $inventory->removeItem($item);
                                             $sender->sendMessage(AuctionHouseLoader::$prefix . '거래소에 아이템을 등록했습니다.');
                                             $sender->sendMessage(AuctionHouseLoader::$prefix . '등록된 아이템은 ' . $time . '시간 내로 팔리지 않은경우 인벤토리로 지급됩니다.');
