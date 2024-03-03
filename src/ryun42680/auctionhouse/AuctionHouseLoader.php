@@ -4,6 +4,7 @@ namespace ryun42680\auctionhouse;
 
 use naeng\NaengMailBox\mail\MailManager;
 use naeng\NaengMailBox\NaengMailBox;
+use naeng\NaengMailBox\mail\Mail;
 use NaengUtils\NaengUtils;
 use pocketmine\block\utils\DyeColor;
 use pocketmine\block\VanillaBlocks;
@@ -97,7 +98,8 @@ final class AuctionHouseLoader extends PluginBase {
     public function returnItem(string $id): void {
         $auctionItem = $this->getAuctionItem($id);
         $this->unregisterItem($id);
-        NaengMailBox::getInstance()->getMailManager()->sendItemMail($auctionItem->getOwner(), '거래소 아이템 반환', '거래소', time() + 60 * 60 * 24 * 10, '거래소 아이템이 반환되었습니다.', [NaengUtils::itemStringSerialize($auctionItem->getItem())]);
+        $mail = new Mail(title: '거래소 아이템 반환', senderName: '거래소', 'body': '거래소 아이템이 반환되었습니다.', items: [$auctionItem->getItem()], expireTimeStamp: time() + 60 * 60 * 24 * 10);
+        $mail->send($auctionItem->getOwner());
     }
 
     public function getAuctionItem(string $id): ?AuctionItem {
