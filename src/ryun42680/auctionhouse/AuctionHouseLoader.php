@@ -2,12 +2,15 @@
 
 namespace ryun42680\auctionhouse;
 
-use naeng\NaengMailBox\mail\MailManager;
-use naeng\NaengMailBox\NaengMailBox;
+use muqsit\invmenu\InvMenu;
+use muqsit\invmenu\InvMenuHandler;
+use muqsit\invmenu\transaction\InvMenuTransaction;
+use muqsit\invmenu\transaction\InvMenuTransactionResult;
+use muqsit\invmenu\type\InvMenuTypeIds;
 use naeng\NaengMailBox\mail\Mail;
-use NaengUtils\NaengUtils;
 use pocketmine\block\utils\DyeColor;
 use pocketmine\block\VanillaBlocks;
+use pocketmine\inventory\Inventory;
 use pocketmine\item\Item;
 use pocketmine\item\VanillaItems;
 use pocketmine\player\Player;
@@ -20,13 +23,8 @@ use RoMo\SaveCore\SaveCore;
 use ryun42680\auctionhouse\command\AuctionHouseCommand;
 use ryun42680\auctionhouse\command\AuctionManagementCommand;
 use ryun42680\auctionhouse\command\RegisterItemCommand;
-use ryun42680\lib\inventorymenu\action\InventoryAction;
-use ryun42680\lib\inventorymenu\inventory\InventoryType;
-use ryun42680\lib\inventorymenu\inventory\SimpleInventory;
 use ryun42680\lib\provider\DataProvider;
 use ryun42680\lib\provider\ProviderHandler;
-use ryun42680\lib\inventorymenu\InventoryMenuHandler;
-use ryun42680\lib\timeparser\TimeParser;
 
 final class AuctionHouseLoader extends PluginBase {
 
@@ -64,8 +62,8 @@ final class AuctionHouseLoader extends PluginBase {
                 $this->provider->save();
             }
         }, $this);
-        if (!InventoryMenuHandler::isRegistered()) {
-            InventoryMenuHandler::register($this);
+        if (!InvMenuHandler::isRegistered()) {
+            InvMenuHandler::register($this);
         }
     }
 
@@ -98,7 +96,7 @@ final class AuctionHouseLoader extends PluginBase {
     public function returnItem(string $id): void {
         $auctionItem = $this->getAuctionItem($id);
         $this->unregisterItem($id);
-        $mail = new Mail(title: '거래소 아이템 반환', senderName: '거래소', 'body': '거래소 아이템이 반환되었습니다.', items: [$auctionItem->getItem()], expireTimeStamp: time() + 60 * 60 * 24 * 10);
+        $mail = new Mail(title: '거래소 아이템 반환', senderName: '거래소', body: '거래소 아이템이 반환되었습니다.', items: [$auctionItem->getItem()], expireTimeStamp: time() + 60 * 60 * 24 * 10);
         $mail->send($auctionItem->getOwner());
     }
 
@@ -148,84 +146,86 @@ final class AuctionHouseLoader extends PluginBase {
     }
 
     public function sendAuctionHouse(Player $player, ?string $keyword = null, bool $deleteMode = false): void {
-        SimpleInventory::create(InventoryType::DOUBLE_CHEST(), '§l§b거래소')
-            ->setOpenHandler(function (SimpleInventory $inventory, Player $player) use ($keyword): void {
-                $this->reloadMenu($inventory, $player, 1, $keyword);
-            })
-            ->setActionHandler(function (SimpleInventory $inventory, InventoryAction $action) use ($deleteMode): bool {
-                $sourceItem = $action->getSourceItem();
-                $namedtag = $sourceItem->getNamedTag();
-                $player = $action->getPlayer();
-                $page = $namedtag->getInt('page', 1);
-                switch ($action->getSlot()) {
-                    case 45:
-                        if (!$sourceItem->isNull()) {
-                            $this->reloadMenu($inventory, $player, $page - 1);
-                        }
-                        break;
+        $invMenu = InvMenu::create(InvMenuTypeIds::TYPE_DOUBLE_CHEST);
+        $invMenu->setName('거래소');
+        $this->reloadMenu($invMenu->getInventory(), $player, 1, $keyword);
+        $invMenu->setListener(function (InvMenuTransaction $transaction) use ($deleteMode, $invMenu): InvMenuTransactionResult {
+            $action = $transaction->getAction();
+            $sourceItem = $action->getSourceItem();
+            $namedtag = $sourceItem->getNamedTag();
+            $player = $transaction->getPlayer();
+            $page = $namedtag->getInt('page', 1);
+            $inventory = $action->getInventory();
+            switch ($action->getSlot()) {
+                case 45:
+                    if (!$sourceItem->isNull()) {
+                        $this->reloadMenu($inventory, $player, $page - 1);
+                    }
+                    break;
 
-                    case 53:
-                        if (!$sourceItem->isNull()) {
-                            $this->reloadMenu($inventory, $player, $page + 1);
-                        }
-                        break;
+                case 53:
+                    if (!$sourceItem->isNull()) {
+                        $this->reloadMenu($inventory, $player, $page + 1);
+                    }
+                    break;
 
-                    default:
-                        $id = $namedtag->getString('auction', '');
-                        $auctionItem = AuctionHouseLoader::getInstance()->getAuctionItem($id);
-                        if ($auctionItem instanceof AuctionItem) {
-                            if ($deleteMode) {
-                                $this->returnItem($id);
-                                $inventory->close($player);
-                                $player->sendMessage(AuctionHouseLoader::$prefix . '작업 완료.');
-                            } else {
-                                if (!$auctionItem->isOwner($player)) {
-                                    $inventory_b = $inventory;
-                                    $inventory_b->close($player);
-                                    SimpleInventory::create(InventoryType::CHEST(), '거래소 구매 확정')
-                                        ->setOpenHandler(function (SimpleInventory $inventory, Player $player) use ($auctionItem): void {
-                                            $inventory->setItem(11, VanillaBlocks::STAINED_GLASS()->setColor(DyeColor::RED())->asItem()->setCustomName('§r§l§c구매 취소하기')->setLore([' ', '§r§7터치하여 거래소 메뉴로 이동']));
-                                            $inventory->setItem(13, $auctionItem->getItem());
-                                            if (WalletFactory::getInstance()->getWallet($player->getName())->getCoin() >= $auctionItem->getPrice()) {
-                                                $inventory->setItem(15, VanillaBlocks::STAINED_GLASS()->setColor(DyeColor::GREEN())->asItem()->setCustomName('§r§l§a구매 확정하기')->setLore([' ', '§r§7터치하여 아이템 구매']));
-                                            }
-                                        })
-                                        ->setActionHandler(function (SimpleInventory $inventory, InventoryAction $action) use ($inventory_b, $auctionItem): bool {
-                                            $player = $action->getPlayer();
-                                            switch ($action->getSlot()) {
-                                                case 11 :
-                                                    $inventory->close($player);
-                                                    $inventory_b->send($player);
-                                                    break;
-
-                                                case 15 :
-                                                    $wallet = WalletFactory::getInstance()->getWallet($player->getName());
-                                                    if ($wallet->getCoin() >= ($price = $auctionItem->getPrice())) {
-                                                        if ($auctionItem->buy($player)) {
-                                                            $wallet->reduceCoin($price);
-                                                        }
-                                                        $inventory->close($player);
-                                                    }
-                                                    break;
-                                            }
-                                            return false;
-                                        })
-                                        ->send($player);
-                                } else {
-                                    $player->sendMessage(AuctionHouseLoader::$prefix . '등록한 아이템을 돌려받았습니다.');
-                                    $inventory->close($player);
-                                    $this->returnItem($id);
+                default:
+                    $id = $namedtag->getString('auction', '');
+                    $auctionItem = AuctionHouseLoader::getInstance()->getAuctionItem($id);
+                    if ($auctionItem instanceof AuctionItem) {
+                        if ($deleteMode) {
+                            $this->returnItem($id);
+                            $player->removeCurrentWindow();
+                            $player->sendMessage(AuctionHouseLoader::$prefix . '작업 완료.');
+                        } else {
+                            if (!$auctionItem->isOwner($player)) {
+                                $player->removeCurrentWindow();
+                                $invMenu_b = InvMenu::create(InvMenuTypeIds::TYPE_CHEST);
+                                $invMenu_b->setName('거래소 구매 확정');
+                                $inventory = $invMenu_b->getInventory();
+                                $inventory->setItem(11, VanillaBlocks::STAINED_GLASS()->setColor(DyeColor::RED())->asItem()->setCustomName('§r§l§c구매 취소하기')->setLore([' ', '§r§7터치하여 거래소 메뉴로 이동']));
+                                $inventory->setItem(13, $auctionItem->getItem());
+                                if (WalletFactory::getInstance()->getWallet($player->getName())->getCoin() >= $auctionItem->getPrice()) {
+                                    $inventory->setItem(15, VanillaBlocks::STAINED_GLASS()->setColor(DyeColor::GREEN())->asItem()->setCustomName('§r§l§a구매 확정하기')->setLore([' ', '§r§7터치하여 아이템 구매']));
                                 }
+                                $invMenu_b->setListener(function (InvMenuTransaction $transaction) use ($invMenu, $auctionItem): InvMenuTransactionResult {
+                                    $action = $transaction->getAction();
+                                    $player = $transaction->getPlayer();
+                                    switch ($action->getSlot()) {
+                                        case 11 :
+                                            $player->removeCurrentWindow();
+                                            $this->reloadMenu($invMenu->getInventory(), $player);
+                                            $invMenu->send($player);
+                                            break;
+
+                                        case 15 :
+                                            $wallet = WalletFactory::getInstance()->getWallet($player->getName());
+                                            if ($wallet->getCoin() >= ($price = $auctionItem->getPrice())) {
+                                                if ($auctionItem->buy($player)) {
+                                                    $wallet->reduceCoin($price);
+                                                }
+                                                $player->removeCurrentWindow();
+                                            }
+                                            break;
+                                    }
+                                    return $transaction->discard();
+                                });
+                                $invMenu_b->send($player);
+                            } else {
+                                $player->sendMessage(AuctionHouseLoader::$prefix . '등록한 아이템을 돌려받았습니다.');
+                                $player->removeCurrentWindow();
+                                $this->returnItem($id);
                             }
                         }
+                    }
 
-                }
-                return false;
-            })
-            ->send($player);
+            }
+            return $transaction->discard();
+        });
+        $invMenu->send($player);
     }
 
-    private function reloadMenu(SimpleInventory $inventory, Player $player, int $page = 1, ?string $keyword = null): void {
+    private function reloadMenu(Inventory $inventory, Player $player, int $page = 1, ?string $keyword = null): void {
         $inventory->clearAll();
         if (is_null($keyword)) {
             if (!empty($this->getItemsByPage($page + 1))) {
