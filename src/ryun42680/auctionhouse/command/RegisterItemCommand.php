@@ -6,6 +6,8 @@ use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\permission\DefaultPermissions;
 use pocketmine\player\Player;
+use RoMo\CommandCore\command\parameter\IntParameter;
+use RoMo\CommandCore\CommandCore;
 use ryun42680\auctionhouse\AuctionHouseLoader;
 use ryun42680\auctionhouse\AuctionItem;
 use ryun42680\lib\itemparser\ItemParser;
@@ -15,6 +17,12 @@ final class RegisterItemCommand extends Command {
     public function __construct() {
         parent::__construct('거래소등록', '거래소에 물품을 올립니다.');
         $this->setPermission(DefaultPermissions::ROOT_USER);
+
+        CommandCore::getInstance()->registerCommandOverload($this, CommandCore::createOverload(
+            new IntParameter("가격"),
+            new IntParameter("개수"),
+            new IntParameter("시간")
+        ));
     }
 
     public function execute(CommandSender $sender, string $commandLabel, array $args): void {
