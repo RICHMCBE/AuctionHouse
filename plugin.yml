@@ -5,3 +5,8 @@ version: 1.1.0
 api: [ 5.0.0 ]
 depend:
   - CommandCore
+  - MoneyCore
+  - NaengMailBox
+  - OfflineNotice
+  - GuideLoader
+  - SaveCore
