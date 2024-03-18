@@ -36,9 +36,12 @@ jobs:
         with:
           php-version: 8.3
 
+      - name: Download PresentKim/pmmp-plugin-build.php
+        run: wget -O .github/workflows/pmmp-plugin-build.php https://raw.githubusercontent.com/PresentKim/scripts-for-action/main/pmmp-plugin-build.php
+
       - name: Build plugin with virion infecting
         if: steps.cache-releases.outputs.cache-hit != 'true'
-        run: php -dphar.readonly=0 .github/workflows/build-plugin-with-virion-infecting.php ${{ env.RELEASE_DIR }}
+        run: php -dphar.readonly=0 .github/workflows/pmmp-plugin-build.php ${{ env.RELEASE_DIR }}
 
       - name: Force update tag release
         if: steps.cache-releases.outputs.cache-hit != 'true'
