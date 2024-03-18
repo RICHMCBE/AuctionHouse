@@ -8,23 +8,26 @@ use pocketmine\permission\DefaultPermissions;
 use pocketmine\player\Player;
 use ryun42680\auctionhouse\AuctionHouseLoader;
 
-final class AuctionHouseCommand extends Command {
+use function array_shift;
+use function trim;
 
-    public function __construct() {
-        parent::__construct('거래소', '거래소를 이용합니다.', null, ['auctionhouse']);
-        $this->setPermission(DefaultPermissions::ROOT_USER);
-    }
+final class AuctionHouseCommand extends Command{
 
-    public function execute(CommandSender $sender, string $commandLabel, array $args): void {
-        if ($sender instanceof Player) {
-            if ($this->testPermission($sender)) {
-                $keyword = array_shift($args);
-                if (trim((string)$keyword) !== '') {
-                    AuctionHouseLoader::getInstance()->sendAuctionHouse($sender, $keyword);
-                } else {
-                    AuctionHouseLoader::getInstance()->sendAuctionHouse($sender);
-                }
-            }
-        }
-    }
+	public function __construct(){
+		parent::__construct("거래소", "거래소를 이용합니다.", null,["auctionhouse"]);
+		$this->setPermission(DefaultPermissions::ROOT_USER);
+	}
+
+	public function execute(CommandSender $sender, string $commandLabel, array $args) : void{
+		if(!$sender instanceof Player){
+			$sender->sendMessage(AuctionHouseLoader::$prefix . "게임내에서만 사용가능합니다.");
+			return;
+		}
+		$keyword = array_shift($args);
+		if(trim((string) $keyword) !== ""){
+			AuctionHouseLoader::getInstance()->sendAuctionHouse($sender, $keyword);
+		}else{
+			AuctionHouseLoader::getInstance()->sendAuctionHouse($sender);
+		}
+	}
 }
